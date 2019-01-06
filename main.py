@@ -20,13 +20,14 @@ def adjust_labels_to_binary(y_train, target_class_value):
             res[i] = 1
         else:
             res[i] = -1
+    return res
 
 #one_vs_rest function gets as arguments x_train and y_train both as nparrays, and target_class_value as string
 #it first binarize y_train according to target_class_value via the function adjust_labels_to_binary
 #it returns a logistic regression model object trained on x_train and y_binarized     
 def one_vs_rest(x_train, y_train, target_class_value):
     y_train_binarized = adjust_labels_to_binary(y_train, target_class_value)
-    clf = LogisticRegression()
+    clf = LogisticRegression(class_weight='balanced', solver='lbfgs')
     clf.fit(x_train, y_train_binarized)
     return clf
 
@@ -41,7 +42,7 @@ def one_vs_rest(x_train, y_train, target_class_value):
 #FP, TN]
 def binarized_confusion_matrix(X, y_binarized, one_vs_rest_model, prob_threshold):
     y_prob = one_vs_rest_model.predict_proba(X)
-    y_pred = [1 if y_prob[i][0] > prob_threshold else -1 for i in range(len(y_prob))]
+    y_pred = [1 if y_prob[i][1] > prob_threshold else -1 for i in range(len(y_prob))]
     TP = sum([1 if y_pred[i] == y_binarized[i] and y_pred[i] == 1 else 0 for i in range(len(y_pred))])
     TN = sum([1 if y_pred[i] == y_binarized[i] and y_pred[i] == -1 else 0 for i in range(len(y_pred))])
     FP = sum([1 if y_pred[i] != y_binarized[i] and y_pred[i] == 1 else 0 for i in range(len(y_pred))])
@@ -115,6 +116,30 @@ if __name__ == '__main__':
     thresholds = [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75]
     x_axis = [micro_avg_false_positve_rate(X_train, y_train, clf_dict, prob) for prob in thresholds]
     y_axis = [micro_avg_recall(X_train, y_train, clf_dict, prob) for prob in thresholds]
+    plt.figure(1)
+    plt.title("ROC Curve")
+    plt.xlabel('u average FP rate')
+    plt.ylabel('u average recall')
     plt.plot(x_axis, y_axis)
     plt.show()
+    T03_recall = micro_avg_recall(X_train, y_train, clf_dict, 0.3)
+    T05_recall = micro_avg_recall(X_train, y_train, clf_dict, 0.5)
+    T07_recall = micro_avg_recall(X_train, y_train, clf_dict, 0.7)
+    T03_precision = micro_avg_precision(X_train, y_train, clf_dict, 0.3)
+    T05_precision = micro_avg_precision(X_train, y_train, clf_dict, 0.5)
+    T07_precision = micro_avg_precision(X_train, y_train, clf_dict, 0.7)
+    betas = list(range(11))
+    fb03 = [f_beta(T03_precision, T03_recall, b) for b in betas]
+    fb05 = [f_beta(T05_precision, T05_recall, b) for b in betas]
+    fb07 = [f_beta(T07_precision, T07_recall, b) for b in betas]
+    plt.figure(2)
+    plt.title('f_beta')
+    plt.xlabel('beta')
+    plt.ylabel('f_beta')
+    plt.plot(betas, fb03, label="Threshold 0.3", color='red')
+    plt.plot(betas, fb05, label="Threshold 0.5", color='green')
+    plt.plot(betas, fb07, label="Threshold 0.7", color='blue')
+    plt.legend(loc='best')
+    plt.show()
+
 
